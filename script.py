@@ -142,7 +142,7 @@ if __name__ == "__main__":
         
         # KNN
         knn = KNeighborsClassifier(n_jobs=-1)
-        grid_knn = GridSearchCV(knn, param_grid_KNN, cv=3, scoring='accuracy', n_jobs=1)
+        grid_knn = GridSearchCV(knn, param_grid_KNN, cv=3, scoring='f1_weighted', n_jobs=1)
         grid_knn.fit(X_train_val, y_train_val)
         knn_best = grid_knn.best_estimator_
         knn_best.fit(X_train, Y_train)
@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
         # Decision Tree
         dt = DecisionTreeClassifier(max_features='log2', random_state=42)
-        grid_dt = GridSearchCV(dt, param_grid_DT, cv=3, scoring='accuracy', n_jobs=1)
+        grid_dt = GridSearchCV(dt, param_grid_DT, cv=3, scoring='f1_weighted', n_jobs=1)
         grid_dt.fit(X_train_val, y_train_val)
         dt_best = grid_dt.best_estimator_
         dt_best.fit(X_train, Y_train)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 
         # Random Forest
         rf = RandomForestClassifier(max_features='sqrt', random_state=42, n_jobs=-1)
-        grid_rf = GridSearchCV(rf, param_grid_RF, cv=3, scoring='accuracy', n_jobs=1)
+        grid_rf = GridSearchCV(rf, param_grid_RF, cv=3, scoring='f1_weighted', n_jobs=1)
         grid_rf.fit(X_train_val, y_train_val)
         rf_best = grid_rf.best_estimator_
         rf_best.fit(X_train, Y_train)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
         # XGBoost
         xgb = XGBClassifier(n_jobs=-1, random_state=42, eval_metric='logloss', tree_method='hist')
-        grid_xgb = GridSearchCV(xgb, param_grid_XGB, cv=3, scoring='accuracy', n_jobs=1)
+        grid_xgb = GridSearchCV(xgb, param_grid_XGB, cv=3, scoring='f1_weighted', n_jobs=1)
         grid_xgb.fit(X_train_val, y_train_val)
         xgb_best = grid_xgb.best_estimator_
         xgb_best.fit(X_train, Y_train)
