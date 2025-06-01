@@ -106,8 +106,15 @@ if __name__ == "__main__":
         }
     }
     
-#========================Trinando e avaliando os modelos========================
-
+    best_models_f1 = {
+    "KNN": (None, -1),
+    "DT": (None, -1),
+    "RF": (None, -1),
+    "XGB": (None, -1),
+    "AutoSklearn": (None, -1)
+}
+    
+#========================Treinando e avaliando os modelos========================
     for fold_index, (train_index, test_index) in enumerate(kf.split(x1)):
         X_train, X_test = x1[train_index], x1[test_index]
         Y_train, Y_test = y1[train_index], y1[test_index]
@@ -137,9 +144,7 @@ if __name__ == "__main__":
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)
         
-#===========================================================================================================================    
         # Treinamento e validação dos modelos
-        
         # KNN
         knn = KNeighborsClassifier(n_jobs=-1)
         grid_knn = GridSearchCV(knn, param_grid_KNN, cv=3, scoring='f1_weighted', n_jobs=1)
@@ -151,6 +156,10 @@ if __name__ == "__main__":
         precision_scores_KNN.append(precision_score(Y_test, y_pred, average='weighted'))
         recall_scores_KNN.append(recall_score(Y_test, y_pred, average='weighted'))
         f1_scores_KNN.append(f1_score(Y_test, y_pred, average='weighted'))
+        
+        f1 = f1_score(Y_test, y_pred, average='weighted')
+        if (f1) > best_models_f1["KNN"][1]:
+            best_models_f1["KNN"] = (knn_best, f1)
 
         # Decision Tree
         dt = DecisionTreeClassifier(max_features='log2', random_state=42)
@@ -163,7 +172,11 @@ if __name__ == "__main__":
         precision_scores_DT.append(precision_score(Y_test, y_pred, average='weighted'))
         recall_scores_DT.append(recall_score(Y_test, y_pred, average='weighted'))
         f1_scores_DT.append(f1_score(Y_test, y_pred, average='weighted'))
-
+        
+        f1 = f1_score(Y_test, y_pred, average='weighted')
+        if f1 > best_models_f1["DT"][1]:
+            best_models_f1["DT"] = (dt_best, f1)
+        
         # Random Forest
         rf = RandomForestClassifier(max_features='sqrt', random_state=42, n_jobs=-1)
         grid_rf = GridSearchCV(rf, param_grid_RF, cv=3, scoring='f1_weighted', n_jobs=1)
@@ -175,6 +188,10 @@ if __name__ == "__main__":
         precision_scores_RF_full.append(precision_score(Y_test, y_pred, average='weighted'))
         recall_scores_RF_full.append(recall_score(Y_test, y_pred, average='weighted'))
         f1_scores_RF_full.append(f1_score(Y_test, y_pred, average='weighted'))
+        
+        f1 = f1_score(Y_test, y_pred, average='weighted')
+        if f1 > best_models_f1["RF"][1]:
+            best_models_f1["RF"] = (rf_best, f1)
 
         # XGBoost
         xgb = XGBClassifier(n_jobs=-1, random_state=42, eval_metric='logloss', tree_method='hist')
@@ -187,6 +204,10 @@ if __name__ == "__main__":
         precision_scores_XGB.append(precision_score(Y_test, y_pred, average='weighted'))
         recall_scores_XGB.append(recall_score(Y_test, y_pred, average='weighted'))
         f1_scores_XGB.append(f1_score(Y_test, y_pred, average='weighted'))
+        
+        f1 = f1_score(Y_test, y_pred, average='weighted')
+        if f1 > best_models_f1["XGB"][1]:
+            best_models_f1["XGB"] = (xgb_best, f1)
 
         # AutoSklearn
         auto = AutoSklearnClassifier(time_left_for_this_task=600, per_run_time_limit=60,ensemble_kwargs={"ensemble_size": 50},seed=42,n_jobs=-1)
@@ -196,7 +217,13 @@ if __name__ == "__main__":
         precision_scores_AUTO.append(precision_score(Y_test, y_pred, average='weighted'))
         recall_scores_AUTO.append(recall_score(Y_test, y_pred, average='weighted'))
         f1_scores_AUTO.append(f1_score(Y_test, y_pred, average='weighted'))
-
+        
+        f1 = f1_score(Y_test, y_pred, average='weighted')
+        if f1 > best_models_f1["AutoSklearn"][1]:
+            best_models_f1["AutoSklearn"] = (auto, f1)
+            
+            
+#===========================================================================================================================    
     #métricas
     data = {
         "Modelo": ["KNN", "DT", "RF", "XGB", "AutoSKLearn"],
@@ -208,6 +235,15 @@ if __name__ == "__main__":
 
     metrics = pd.DataFrame(data)
     metrics.to_csv("metrics.csv", index=False)
+    
+    #melhor modelo de cada algoritmo de todos os folds
+    for nome, (modelo, _) in best_models_f1.items():
+        joblib.dump(modelo, f"melhor_modelo_{nome}.joblib")
+
+    #melhor modelo de todos
+    melhor_nome = max(best_models_f1.items(), key=lambda x: x[1][1])[0]
+    melhor_modelo = best_models_f1[melhor_nome][0]
+    joblib.dump(melhor_modelo, f"melhor_modelo_{melhor_nome}_GLOBAL.joblib")
 
     # Wilcoxon
     model_names = list(model_metrics.keys())
@@ -224,7 +260,7 @@ if __name__ == "__main__":
                 stat, p_value = wilcoxon(data1, data2)
                 wilcoxon_results[f"{model1} vs {model2} - {metric}"] = (stat, p_value)
 
-    # Tabela de resultados
+    #resultados
     table_data = [
         [comparison, stat, round(p, 3), "Sim" if p < 0.05 else "Não"]
         for comparison, (stat, p) in wilcoxon_results.items()
@@ -237,6 +273,4 @@ if __name__ == "__main__":
     print("\n ")
     print("Processamento concluído. Resultados salvos em 'metrics.csv' e 'wilcoxon_results.csv'.")
     print("Modelos treinados e salvos com sucesso.")
-    # print("Dataset reduzido salvo como 'df_reduced.csv'.")
-    # print(f"Nº de features selecionadas: {len(selected_features)}")
     print("Todos os processos concluídos com sucesso.")
