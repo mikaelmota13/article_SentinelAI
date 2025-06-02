@@ -14,13 +14,14 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     git \
+    pyarrow \
     && apt-get clean
 
 WORKDIR /app
 
 COPY requirements.txt .
 COPY script.py .
-COPY df_sampled.csv .
+COPY df.parquet .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt

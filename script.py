@@ -22,7 +22,7 @@ from imblearn.under_sampling import NearMiss
 from scipy.stats import wilcoxon
 
 if __name__ == "__main__":
-    df_reduced = pd.read_csv("df_sampled.csv")
+    df_reduced = pd.read_parquet("df_teste.parquet")
 
     #================Escolha do modelo a ser usado================
     # Hiperparâmetros dos modelos a serem testados 
