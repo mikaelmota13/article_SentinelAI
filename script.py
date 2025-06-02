@@ -2,6 +2,7 @@
 #docker run -it autosklearn-image
 #docker run -it -v $(pwd):/app autosklearn-image
 import os
+import gc
 import joblib
 import numpy as np
 import pandas as pd
@@ -113,7 +114,8 @@ if __name__ == "__main__":
     "XGB": (None, -1),
     "AutoSklearn": (None, -1)
 }
-    
+    del df_reduced, x, y, x_clean
+    gc.collect()
 #========================Treinando e avaliando os modelos========================
     for fold_index, (train_index, test_index) in enumerate(kf.split(x1)):
         X_train, X_test = x1[train_index], x1[test_index]
@@ -220,9 +222,10 @@ if __name__ == "__main__":
         
         f1 = f1_score(Y_test, y_pred, average='weighted')
         if f1 > best_models_f1["AutoSklearn"][1]:
-            best_models_f1["AutoSklearn"] = (auto, f1)
+            best_models_f1["AutoSklearn"] = (auto, f1)         
             
-            
+        del X_train, X_test, Y_train, Y_test, X_train_val, X_test_val, y_train_val, y_test_val, X_resampled, Y_resampled, X_discarded, Y_discarded, selected_mask, hash_train, hash_resampled, knn, grid_knn, dt, grid_dt, rf, grid_rf, xgb, grid_xgb, auto, y_pred
+        gc.collect()  
 #===========================================================================================================================    
     #métricas
     data = {
@@ -235,6 +238,8 @@ if __name__ == "__main__":
 
     metrics = pd.DataFrame(data)
     metrics.to_csv("metrics.csv", index=False)
+    
+    del metrics, data, x1, y1
     
     #melhor modelo de cada algoritmo de todos os folds
     for nome, (modelo, _) in best_models_f1.items():
@@ -268,6 +273,9 @@ if __name__ == "__main__":
 
     df_results = pd.DataFrame(table_data, columns=["Comparação", "Estatística", "p-valor", "Rejeita H₀"])
     df_results.to_csv("wilcoxon_results.csv", index=False)
+    
+    del model_metrics, model_names, metrics_a, wilcoxon_results, table_data, df_results
+    gc.collect()
     
     print("\n ")
     print("\n ")
