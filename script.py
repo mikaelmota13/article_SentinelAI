@@ -1,5 +1,5 @@
 #docker build -t autosklearn-image .
-#docker run -it -v $(pwd):/app autosklearn-image
+#docker run -it -v "$(pwd):/app" autosklearn-image
 import os
 import gc
 import joblib
@@ -24,8 +24,12 @@ if __name__ == "__main__":
     x_train = pd.read_parquet("X_resampled_ho.parquet")
     y_train = pd.read_parquet("Y_resampled_ho.parquet")
     
-    x_train = x_train.values
-    y_train = y_train.values
+    x_clean = x_train.replace([np.inf, -np.inf], np.nan)
+    x_clean = x_clean.fillna(x_clean.mean())
+
+    x_train = x_clean.values.astype(np.float32)
+    y_train = y_train.values.ravel()
+
 
     #================Escolha do modelo a ser usado================
     # Hiperparâmetros dos modelos a serem testados 
@@ -279,7 +283,7 @@ if __name__ == "__main__":
     
     del model_metrics, model_names, metrics_a, wilcoxon_results, table_data, df_results
     gc.collect()
-    
+     
     print("\n ")
     print("\n ")
     print("Processamento concluído. Resultados salvos em 'metrics.csv' e 'wilcoxon_results.csv'.")
