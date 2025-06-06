@@ -1,5 +1,4 @@
 #docker build -t autosklearn-image .
-#docker run -it autosklearn-image
 #docker run -it -v $(pwd):/app autosklearn-image
 import os
 import gc
@@ -22,7 +21,11 @@ from imblearn.under_sampling import NearMiss
 from scipy.stats import wilcoxon
 
 if __name__ == "__main__":
-    df_reduced = pd.read_parquet("df_teste.parquet")
+    x_train = pd.read_parquet("X_resampled_ho.parquet")
+    y_train = pd.read_parquet("Y_resampled_ho.parquet")
+    
+    x_train = x_train.values
+    y_train = y_train.values
 
     #================Escolha do modelo a ser usado================
     # Hiperparâmetros dos modelos a serem testados 
@@ -65,14 +68,14 @@ if __name__ == "__main__":
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
     scaler = StandardScaler()
 
-    x = df_reduced.drop('label', axis=1)
-    y = df_reduced['label']
+    # x = df_reduced.drop('label', axis=1)
+    # y = df_reduced['label']
 
-    x_clean = x.replace([np.inf, -np.inf], np.nan)
-    x_clean = x_clean.fillna(x_clean.mean())
+    # x_clean = x.replace([np.inf, -np.inf], np.nan)
+    # x_clean = x_clean.fillna(x_clean.mean())
 
-    x1 = x_clean.values
-    y1 = y.values
+    # x1 = x_clean.values
+    # y1 = y.values
 
     model_metrics = {
         "KNN": {
@@ -114,29 +117,29 @@ if __name__ == "__main__":
     "XGB": (None, -1),
     "AutoSklearn": (None, -1)
 }
-    del df_reduced, x, y, x_clean
+    #del df_reduced, x, y, x_clean
     gc.collect()
 #========================Treinando e avaliando os modelos========================
-    for fold_index, (train_index, test_index) in enumerate(kf.split(x1)):
-        X_train, X_test = x1[train_index], x1[test_index]
-        Y_train, Y_test = y1[train_index], y1[test_index]
+    for fold_index, (train_index, test_index) in enumerate(kf.split(x_train)):
+        X_train, X_test = x_train[train_index], x_train[test_index]
+        Y_train, Y_test = y_train[train_index], y_train[test_index]
         
-        #isso aqui é o nearmiss e salvando os dados descartados concatenando no conjunto de testes
-        counts = Counter(Y_train)
-        valid_classes = {cls: 5000 for cls in range(5) if counts.get(cls, 0) >= 5000}
+        # #isso aqui é o nearmiss e salvando os dados descartados concatenando no conjunto de testes
+        # counts = Counter(Y_train)
+        # valid_classes = {cls: 5000 for cls in range(5) if counts.get(cls, 0) >= 5000}
 
-        nm = NearMiss(sampling_strategy=valid_classes, version=2, n_neighbors=3, n_jobs=-1)
-        X_resampled, Y_resampled = nm.fit_resample(X_train, Y_train)
+        # nm = NearMiss(sampling_strategy=valid_classes, version=2, n_neighbors=3, n_jobs=-1)
+        # X_resampled, Y_resampled = nm.fit_resample(X_train, Y_train)
 
-        hash_train = hash_pandas_object(pd.DataFrame(X_train)).values
-        hash_resampled = hash_pandas_object(pd.DataFrame(X_resampled)).values
-        selected_mask = np.isin(hash_train, hash_resampled)
+        # hash_train = hash_pandas_object(pd.DataFrame(X_train)).values
+        # hash_resampled = hash_pandas_object(pd.DataFrame(X_resampled)).values
+        # selected_mask = np.isin(hash_train, hash_resampled)
 
-        X_discarded = X_train[~selected_mask]
-        Y_discarded = Y_train[~selected_mask]
+        # X_discarded = X_train[~selected_mask]
+        # Y_discarded = Y_train[~selected_mask]
 
-        X_test = np.concatenate((X_test, X_discarded), axis=0)
-        Y_test = np.concatenate((Y_test, Y_discarded), axis=0)
+        # X_test = np.concatenate((X_test, X_discarded), axis=0)
+        # Y_test = np.concatenate((Y_test, Y_discarded), axis=0)
 
         X_train_val, X_test_val, y_train_val, y_test_val = train_test_split(X_train, Y_train, random_state=42, test_size=0.2)
 
@@ -149,7 +152,7 @@ if __name__ == "__main__":
         # Treinamento e validação dos modelos
         # KNN
         knn = KNeighborsClassifier(n_jobs=-1)
-        grid_knn = GridSearchCV(knn, param_grid_KNN, cv=3, scoring='f1_weighted', n_jobs=1)
+        grid_knn = GridSearchCV(knn, param_grid_KNN, cv=3, scoring='f1_weighted', n_jobs=2)
         grid_knn.fit(X_train_val, y_train_val)
         knn_best = grid_knn.best_estimator_
         knn_best.fit(X_train, Y_train)
@@ -165,7 +168,7 @@ if __name__ == "__main__":
 
         # Decision Tree
         dt = DecisionTreeClassifier(max_features='log2', random_state=42)
-        grid_dt = GridSearchCV(dt, param_grid_DT, cv=3, scoring='f1_weighted', n_jobs=1)
+        grid_dt = GridSearchCV(dt, param_grid_DT, cv=3, scoring='f1_weighted', n_jobs=2)
         grid_dt.fit(X_train_val, y_train_val)
         dt_best = grid_dt.best_estimator_
         dt_best.fit(X_train, Y_train)
@@ -181,7 +184,7 @@ if __name__ == "__main__":
         
         # Random Forest
         rf = RandomForestClassifier(max_features='sqrt', random_state=42, n_jobs=-1)
-        grid_rf = GridSearchCV(rf, param_grid_RF, cv=3, scoring='f1_weighted', n_jobs=1)
+        grid_rf = GridSearchCV(rf, param_grid_RF, cv=3, scoring='f1_weighted', n_jobs=2)
         grid_rf.fit(X_train_val, y_train_val)
         rf_best = grid_rf.best_estimator_
         rf_best.fit(X_train, Y_train)
@@ -197,7 +200,7 @@ if __name__ == "__main__":
 
         # XGBoost
         xgb = XGBClassifier(n_jobs=-1, random_state=42, eval_metric='logloss', tree_method='hist')
-        grid_xgb = GridSearchCV(xgb, param_grid_XGB, cv=3, scoring='f1_weighted', n_jobs=1)
+        grid_xgb = GridSearchCV(xgb, param_grid_XGB, cv=3, scoring='f1_weighted', n_jobs=-1)
         grid_xgb.fit(X_train_val, y_train_val)
         xgb_best = grid_xgb.best_estimator_
         xgb_best.fit(X_train, Y_train)
@@ -212,7 +215,7 @@ if __name__ == "__main__":
             best_models_f1["XGB"] = (xgb_best, f1)
 
         # AutoSklearn
-        auto = AutoSklearnClassifier(time_left_for_this_task=600, per_run_time_limit=60,ensemble_kwargs={"ensemble_size": 50},seed=42,n_jobs=-1)
+        auto = AutoSklearnClassifier(time_left_for_this_task=600, per_run_time_limit=60,ensemble_kwargs={"ensemble_size": 50},seed=42,n_jobs=2)
         auto.fit(X_train, Y_train)
         y_pred = auto.predict(X_test)
         test_scores_AUTO.append(accuracy_score(Y_test, y_pred))
@@ -224,7 +227,7 @@ if __name__ == "__main__":
         if f1 > best_models_f1["AutoSklearn"][1]:
             best_models_f1["AutoSklearn"] = (auto, f1)         
             
-        del X_train, X_test, Y_train, Y_test, X_train_val, X_test_val, y_train_val, y_test_val, X_resampled, Y_resampled, X_discarded, Y_discarded, selected_mask, hash_train, hash_resampled, knn, grid_knn, dt, grid_dt, rf, grid_rf, xgb, grid_xgb, auto, y_pred
+        del X_train, X_test, Y_train, Y_test, X_train_val, X_test_val, y_train_val, y_test_val, knn, grid_knn, dt, grid_dt, rf, grid_rf, xgb, grid_xgb, auto, y_pred
         gc.collect()  
 #===========================================================================================================================    
     #métricas
@@ -239,7 +242,7 @@ if __name__ == "__main__":
     metrics = pd.DataFrame(data)
     metrics.to_csv("metrics.csv", index=False)
     
-    del metrics, data, x1, y1
+    del metrics, data, x_train, y_train
     
     #melhor modelo de cada algoritmo de todos os folds
     for nome, (modelo, _) in best_models_f1.items():
